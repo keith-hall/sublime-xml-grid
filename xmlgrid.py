@@ -1,5 +1,6 @@
 import sublime, sublime_plugin
 import xml.etree.ElementTree as etree
+#from lxml import etree
 
 def findMultipleChildren(element):
 	"""find the first element in document order that contains multiple children."""
@@ -16,14 +17,19 @@ def hierarchyToHeading(hierarchy):
 	"""convert the given hierarchy to a column heading."""
 	heading = ''
 	for item in hierarchy:
-		base = item
-		if '}' in base:
-			base = base[0:base.index('{')] + base[base.index('}') + 1:]
-		if base.startswith('@'):
-			base = '[' + base + ']'
+		nsStart = item.find('{')
+		nsEnd = item.find('}')
+		if nsStart > -1:
+			namespaceURI = item[nsStart + 1:nsEnd]
+			local = item[0:nsStart] + item[nsEnd + 1:]
+		else:
+			local = item
+		# TODO: get namespace prefix from URI
+		if local.startswith('@'):
+			local = '[' + local + ']'
 		elif heading != '':
 			heading += '/'
-		heading += base
+		heading += local
 	return heading
 
 def recordValue(headings, values, hierarchy, heading, value):
@@ -43,6 +49,7 @@ def addAllChildrenToDictionary(element, headings, values, hierarchy, includeAttr
 	if includeAttributes:
 		for attr in element.items():
 			recordValue(headings, values, hierarchy, '@' + attr[0], attr[1])
+	
 	children = list(element)
 	if len(children) > 0:
 		for child in children:
