@@ -58,7 +58,11 @@ def displayField(view, edit, value, separator, colsize):
 		value = ''
 	if separator == ' ':
 		separator = separator * (colsize - len(value))
-	
+	else:
+		quote = '"'
+		# the following text qualification rules and quote doubling are based on recommendations in RFC 4180
+		if quote in value or value.endswith(' ') or value.endswith('\t') or separator in value: # qualify the text in quotes if it contains a quote, ends in whitespace, or contains the separator
+			value = quote + value.replace(quote, quote + quote) + quote # to escape a quote, we double it up
 	view.insert(edit, view.size(), value + separator)
 
 def isSGML(view):
@@ -101,7 +105,7 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 						itemSize = len(row[item])
 						if itemSize > size:
 							size = itemSize
-				colsizes[item] = size + 1
+				colsizes[item] = size + 1 # add one to ensure that there is a gap between fields
 		
 		# create a new view to write the grid to
 		gridView = self.view.window().new_file()
