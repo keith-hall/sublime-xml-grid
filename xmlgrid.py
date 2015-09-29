@@ -13,17 +13,22 @@ def findMultipleChildren(element):
 			return check
 	return None
 
+def extractNamespaceURI(qualifiedName):
+	nsStart = qualifiedName.find('{')
+	nsEnd = qualifiedName.find('}')
+	if nsStart > -1:
+		namespaceURI = qualifiedName[nsStart + 1:nsEnd]
+		local = qualifiedName[0:nsStart] + qualifiedName[nsEnd + 1:]
+	else:
+		local = qualifiedName
+		namespaceURI = None
+	return (namespaceURI, local)
+
 def hierarchyToHeading(hierarchy):
 	"""convert the given hierarchy to a column heading."""
 	heading = ''
 	for item in hierarchy:
-		nsStart = item.find('{')
-		nsEnd = item.find('}')
-		if nsStart > -1:
-			namespaceURI = item[nsStart + 1:nsEnd]
-			local = item[0:nsStart] + item[nsEnd + 1:]
-		else:
-			local = item
+		namespaceURI, local = extractNamespaceURI(item)
 		# TODO: get namespace prefix from URI
 		if local.startswith('@'):
 			local = '[' + local + ']'
@@ -85,6 +90,7 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 	def run(self, edit):
 		# parse the view as xml
 		xml = etree.fromstring(self.view.substr(sublime.Region(0, self.view.size())))
+		rootNamespaceURI = extractNamespaceURI(xml.tag)[0]
 		
 		# find the elements that will become rows in the grid
 		children = findMultipleChildren(xml)
