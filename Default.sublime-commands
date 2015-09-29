@@ -1,0 +1,6 @@
+[
+	{
+		"caption": "XML to Grid: Display XML as grid in new view",
+		"command": "xml_to_grid"
+	}
+]
