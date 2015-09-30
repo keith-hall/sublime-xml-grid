@@ -73,7 +73,7 @@ def displayField(view, edit, value, separator, colsize):
 	else:
 		quote = '"'
 		# the following text qualification rules and quote doubling are based on recommendations in RFC 4180
-		if quote in value or value.endswith(' ') or value.endswith('\t') or value.startswith(' ') or value.startswith('\t') or separator in value: # qualify the text in quotes if it contains a quote, starts or ends in whitespace, or contains the separator
+		if quote in value or value.endswith(' ') or value.endswith('\t') or value.startswith(' ') or value.startswith('\t') or '\n' in value or separator in value: # qualify the text in quotes if it contains a quote, starts or ends in whitespace, or contains the separator
 			value = quote + value.replace(quote, quote + quote) + quote # to escape a quote, we double it up
 	view.insert(edit, view.size(), value + separator)
 
