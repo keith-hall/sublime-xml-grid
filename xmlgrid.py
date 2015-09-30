@@ -69,7 +69,17 @@ def displayField(view, edit, value, separator, colsize):
 	if value is None:
 		value = ''
 	if separator == ' ':
-		separator = separator * (colsize - len(value))
+		if '\n' in value:
+			startCol = view.rowcol(view.size())[1]
+			lines = value.split('\n')
+			for index, line in enumerate(lines):
+				append = separator * (colsize - len(line))
+				if index < len(lines) - 1: # don't append a newline to the last line in the value
+					append += '\n'
+				view.insert(edit, view.size(), (separator * (startCol - view.rowcol(view.size())[1])) + line + append) # prepend enough spaces to start at the right column
+			return
+		else:
+			separator = separator * (colsize - len(value))
 	else:
 		quote = '"'
 		# the following text qualification rules and quote doubling are based on recommendations in RFC 4180
@@ -116,9 +126,10 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 				size = len(hierarchyToHeading(item))
 				for row in rows:
 					if item in row.keys():
-						itemSize = len(row[item])
-						if itemSize > size:
-							size = itemSize
+						for line in row[item].split('\n'):
+							itemSize = len(line)
+							if itemSize > size:
+								size = itemSize
 				colsizes[item] = size + 1 # add one to ensure that there is a gap between fields
 		
 		# create a new view to write the grid to
