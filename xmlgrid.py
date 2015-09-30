@@ -1,6 +1,6 @@
 import sublime, sublime_plugin
 import xml.etree.ElementTree as etree
-#from lxml import etree
+from io import StringIO
 
 def findMultipleChildren(element):
 	"""find the first element in document order that contains multiple children."""
@@ -29,6 +29,7 @@ def hierarchyToHeading(hierarchy):
 	heading = ''
 	for item in hierarchy:
 		namespaceURI, local = extractNamespaceURI(item)
+		
 		# TODO: get namespace prefix from URI
 		if local.startswith('@'):
 			local = '[' + local + ']'
@@ -96,15 +97,31 @@ def isSGML(view):
 	else:
 		return False
 
+def parseXMLString(xmlString):
+	root = None
+	nextNamespaces = []
+	namespaces = {}
+	for event, item in etree.iterparse(StringIO(xmlString), ('start', 'start-ns')):
+		if event == 'start-ns':
+			nextNamespaces.append(item)
+		elif event == 'start':
+			if root is None:
+				root = item
+			if len(nextNamespaces) > 0:
+				namespaces[item] = nextNamespaces
+				nextNamespaces = []
+	return (root, namespaces)
+
 class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().active_view().run_command('xml_to_grid')
 	def run(self, edit):
 		# parse the view as xml
-		xml = etree.fromstring(self.view.substr(sublime.Region(0, self.view.size())))
-		rootNamespaceURI = extractNamespaceURI(xml.tag)[0]
-		print(str(list(xml.items())))
+		#xml = etree.fromstring(self.view.substr(sublime.Region(0, self.view.size())))
+		xmlString = self.view.substr(sublime.Region(0, self.view.size()))
 		
+		root, namespaces = parseXMLString(xmlString)
+
 		# find the elements that will become rows in the grid
-		children = findMultipleChildren(xml)
+		children = findMultipleChildren(root)
 		
 		# read the settings
 		settings = sublime.load_settings('xmlgrid.sublime-settings')
