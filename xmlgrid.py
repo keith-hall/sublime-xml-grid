@@ -13,29 +13,15 @@ def findMultipleChildren(element):
 			return check
 	return None
 
-def extractNamespaceURI(qualifiedName):
-	nsStart = qualifiedName.find('{')
-	nsEnd = qualifiedName.find('}')
-	if nsStart > -1:
-		namespaceURI = qualifiedName[nsStart + 1:nsEnd]
-		local = qualifiedName[0:nsStart] + qualifiedName[nsEnd + 1:]
-	else:
-		local = qualifiedName
-		namespaceURI = None
-	return (namespaceURI, local)
-
 def hierarchyToHeading(hierarchy):
 	"""convert the given hierarchy to a column heading."""
 	heading = ''
 	for item in hierarchy:
-		namespaceURI, local = extractNamespaceURI(item)
-		
-		# TODO: get namespace prefix from URI
-		if local.startswith('@'):
-			local = '[' + local + ']'
+		if item.startswith('@'):
+			item = '[' + item + ']'
 		elif heading != '':
 			heading += '/'
-		heading += local
+		heading += item
 	return heading
 
 def recordValue(headings, values, hierarchy, heading, value):
@@ -89,7 +75,7 @@ def displayField(view, edit, value, separator, colsize):
 	view.insert(edit, view.size(), value + separator)
 
 def isSGML(view):
-	"""Return True if the view's syntax is XML."""
+	"""return True if the view's syntax is XML."""
 	currentSyntax = view.settings().get('syntax')
 	if currentSyntax is not None:
 		XMLSyntax = 'Packages/XML/'
@@ -97,29 +83,77 @@ def isSGML(view):
 	else:
 		return False
 
-def parseXMLString(xmlString):
+def findNamespacePrefix(hierarchy, namespaceURI):
+	for namespaces in hierarchy:
+		for namespace in namespaces:
+			if namespace[1] == namespaceURI:
+				prefix = namespace[0]
+				if prefix is None or prefix == '':
+					prefix = ''
+				else:
+					prefix += ':'
+				return prefix
+	return ''
+
+
+def extractNamespaceURI(qualifiedName):
+	"""given an ElementTree fully qualified tag or attribute name and extract the namespace URI and the local name separately."""
+	nsStart = qualifiedName.find('{')
+	nsEnd = qualifiedName.find('}')
+	if nsStart > -1:
+		namespaceURI = qualifiedName[nsStart + 1:nsEnd]
+		local = qualifiedName[0:nsStart] + qualifiedName[nsEnd + 1:]
+	else:
+		local = qualifiedName
+		namespaceURI = None
+	return (namespaceURI, local)
+
+def parseXMLFile(fileRef):
+	"""parse the given xml file reference into a DOM, converting ElementTree's namespace URIs in the tag name to the prefix."""
 	root = None
 	nextNamespaces = []
-	namespaces = {}
-	for event, item in etree.iterparse(StringIO(xmlString), ('start', 'start-ns')):
+	hierarchy = []
+	for event, item in etree.iterparse(fileRef, ('start', 'start-ns', 'end')):
 		if event == 'start-ns':
 			nextNamespaces.append(item)
 		elif event == 'start':
 			if root is None:
 				root = item
+			hierarchy.append(nextNamespaces)
+			
+			namespaceURI, local = extractNamespaceURI(item.tag)
+			prefix = findNamespacePrefix(hierarchy, namespaceURI)
+			item.tag = prefix + local
+			
+			attributes = {}
+			for attribute in item.attrib:
+				namespaceURI, local = extractNamespaceURI(attribute)
+				prefix = findNamespacePrefix(hierarchy, namespaceURI)
+				attributes[prefix + local] = item.attrib[attribute]
+			
+			# add xmlns attributes back in, as ElementTree removes them
+			for namespaces in nextNamespaces:
+				prefix = namespaces[0]
+				if prefix != '':
+					prefix = ':' + prefix
+				attributes['xmlns' + prefix] = namespaces[1]
+			item.attrib = attributes
+			
 			if len(nextNamespaces) > 0:
-				namespaces[item] = nextNamespaces
 				nextNamespaces = []
-	return (root, namespaces)
+		elif event == 'end':
+			hierarchy.pop()
+	return root
 
 class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().active_view().run_command('xml_to_grid')
 	def run(self, edit):
+		sublime.status_message('parsing xml...')
 		# parse the view as xml
-		#xml = etree.fromstring(self.view.substr(sublime.Region(0, self.view.size())))
 		xmlString = self.view.substr(sublime.Region(0, self.view.size()))
 		
-		root, namespaces = parseXMLString(xmlString)
-
+		root = parseXMLFile(StringIO(xmlString))
+		
+		sublime.status_message('converting xml to grid...')
 		# find the elements that will become rows in the grid
 		children = findMultipleChildren(root)
 		
@@ -168,6 +202,7 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 				displayField(gridView, edit, value, separator, colsizes[item])
 			gridView.insert(edit, gridView.size(), '\n')
 		
+		sublime.status_message('')
 	def is_enabled(self):
 		return isSGML(self.view)
 	def is_visible(self):
