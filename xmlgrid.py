@@ -73,7 +73,7 @@ def displayField(view, edit, value, separator, colsize):
 	else:
 		quote = '"'
 		# the following text qualification rules and quote doubling are based on recommendations in RFC 4180
-		if quote in value or value.endswith(' ') or value.endswith('\t') or separator in value: # qualify the text in quotes if it contains a quote, ends in whitespace, or contains the separator
+		if quote in value or value.endswith(' ') or value.endswith('\t') or value.startswith(' ') or value.startswith('\t') or separator in value: # qualify the text in quotes if it contains a quote, starts or ends in whitespace, or contains the separator
 			value = quote + value.replace(quote, quote + quote) + quote # to escape a quote, we double it up
 	view.insert(edit, view.size(), value + separator)
 
@@ -91,6 +91,7 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 		# parse the view as xml
 		xml = etree.fromstring(self.view.substr(sublime.Region(0, self.view.size())))
 		rootNamespaceURI = extractNamespaceURI(xml.tag)[0]
+		print(str(list(xml.items())))
 		
 		# find the elements that will become rows in the grid
 		children = findMultipleChildren(xml)
