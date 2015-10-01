@@ -83,10 +83,11 @@ def isSGML(view):
 	else:
 		return False
 
-def findNamespacePrefix(hierarchy, namespaceURI):
+def findNamespacePrefix(hierarchy, findNamespaceURI):
+	"""given a hierarchy of namespace URIs and prefixes, find the given URI and return it's prefix followed by a colon."""
 	for namespaces in hierarchy:
 		for namespace in namespaces:
-			if namespace[1] == namespaceURI:
+			if namespace[1] == findNamespaceURI:
 				prefix = namespace[0]
 				if prefix is None or prefix == '':
 					prefix = ''
@@ -108,7 +109,7 @@ def extractNamespaceURI(qualifiedName):
 		namespaceURI = None
 	return (namespaceURI, local)
 
-def parseXMLFile(fileRef):
+def parseXMLFile(fileRef, includeXMLNSAttributes):
 	"""parse the given xml file reference into a DOM, converting ElementTree's namespace URIs in the tag name to the prefix."""
 	root = None
 	nextNamespaces = []
@@ -125,18 +126,21 @@ def parseXMLFile(fileRef):
 			prefix = findNamespacePrefix(hierarchy, namespaceURI)
 			item.tag = prefix + local
 			
+			# recreate attributes dictionary
 			attributes = {}
+			if includeXMLNSAttributes:
+				# add xmlns attributes back in, as ElementTree removes them
+				for namespaces in nextNamespaces:
+					prefix = namespaces[0]
+					if prefix != '':
+						prefix = ':' + prefix
+					attributes['xmlns' + prefix] = namespaces[1]
+			
 			for attribute in item.attrib:
 				namespaceURI, local = extractNamespaceURI(attribute)
 				prefix = findNamespacePrefix(hierarchy, namespaceURI)
 				attributes[prefix + local] = item.attrib[attribute]
 			
-			# add xmlns attributes back in, as ElementTree removes them
-			for namespaces in nextNamespaces:
-				prefix = namespaces[0]
-				if prefix != '':
-					prefix = ':' + prefix
-				attributes['xmlns' + prefix] = namespaces[1]
 			item.attrib = attributes
 			
 			if len(nextNamespaces) > 0:
@@ -151,7 +155,7 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 		# parse the view as xml
 		xmlString = self.view.substr(sublime.Region(0, self.view.size()))
 		
-		root = parseXMLFile(StringIO(xmlString))
+		root = parseXMLFile(StringIO(xmlString), False)
 		
 		sublime.status_message('converting xml to grid...')
 		# find the elements that will become rows in the grid
