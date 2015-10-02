@@ -159,71 +159,62 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 			row = {}
 			addAllChildrenToDictionary(child, headings, row, [child.tag], includeAttributes)
 			rows.append(row)
-		
+		# prepend a heading row now that we have all the headings
+		row = {}
+		for heading in headings:
+			row[heading] = hierarchyToHeading(heading)
+		rows[:0] = [row]
 		# create a new view to write the grid to
 		gridView = self.view.window().new_file()
 		
+		valueForCell = lambda heading, row: row.get(heading, '')
 		# if grid-mode
 		if separator == ' ':
-			linesForCell = lambda heading, row: row.get(heading, '').split('\n')
-			# determine the contents of each cell in the grid
-			columns = list(map(lambda heading: [[hierarchyToHeading(heading)]] + list(map(lambda row: linesForCell(heading, row), rows)), headings))
+			linesForCell = lambda heading, row: valueForCell(heading, row).split('\n')
 			
 			# determine the size of each row
 			rowSizes = []
-			for column in columns:
-				for rowNumber in range(len(column)):
-					if len(rowSizes) <= rowNumber:
-						rowSizes.append(0)
-					rowSizes[rowNumber] = max(len(column[rowNumber]), rowSizes[rowNumber])
+			for row in rows:
+				rowSize = 0
+				for heading in headings:
+					rowSize = max(rowSize, len(linesForCell(heading, row)))
+				rowSizes.append(rowSize)
 			
 			# if some cells span multiple lines
 			if max(rowSizes) > 1:
 				# insert line numbers
-				rowNumbers = [['#']]
-				for rowNumber in range(len(rowSizes)):
-					rowNumbers.append([str(rowNumber + 1)])
-				
-				columns[:0] = [rowNumbers]
+				lineNoHeading = ('#')
+				headings[:0] = [lineNoHeading]
+				for rowIndex, row in enumerate(rows):
+					row[lineNoHeading] = str(rowIndex)
+				rows[0][lineNoHeading] = '#'
 			
 			# determine the size of each column
-			colSizes = list(map(lambda column: max(map(lambda cell: max(list(map(lambda line: len(line), cell))), column)) + 1, columns)) # the + 1 is to ensure that there is a gap between fields
-			
-			# determine column start positions
-			index = 0
-			colStarts = []
-			for colsize in colSizes:
-			 	colStarts.append(index)
-			 	index += colsize
-			
-			# write empty spaces for all lines first, they will be replaced later
-			for rowSize in rowSizes:
-				for rowNumber in range(rowSize):
-					gridView.insert(edit, gridView.size(), (' ' * index) + '\n')
-			index += 1 # account for the new line character at the end of each line
+			colSizes = []
+			for heading in headings:
+				colSize = 0
+				for row in rows:
+					colSize = max(colSize, max(list(map(len, linesForCell(heading, row)))))
+				colSizes.append(colSize + 1) # add one for a space between the cells/columns
 			
 			# write the cells
-			
-			getPoint = lambda columnNumber, rowNumber: (rowNumber * index) + colStarts[columnNumber]
-			
-			for columnNumber in range(len(headings)): # for each column
-				currentRow = 0
-				for rowNumber in range(len(rowSizes)): # for each row
-					rowStart = currentRow
-					linesForCell = columns[columnNumber][rowNumber]
-					for rowLine in linesForCell:
-						point = getPoint(columnNumber, currentRow)
-						gridView.replace(edit, sublime.Region(point, point + len(rowLine)), rowLine)
-						currentRow += 1
-					currentRow = rowStart + rowSizes[rowNumber]
+			currentLine = 0
+			for rowNumber in range(len(rowSizes)): # for each row
+				for rowLine in range(rowSizes[rowNumber]): # for each line in the row
+					for columnNumber in range(len(headings)): # for each column
+						lines = linesForCell(headings[columnNumber], rows[rowNumber])
+						if len(lines) <= rowLine:
+							cellLineText = ''
+						else:
+							cellLineText = lines[rowLine]
+						gridView.insert(edit, gridView.size(), cellLineText + ' ' * (colSizes[columnNumber] - len(cellLineText))) # write the text followed by enough blank spaces to fill the rest of the column
+					currentLine += 1
+					gridView.insert(edit, gridView.size(), '\n')
 		# if csv-mode
 		else:
-			# write the headings
-			gridView.insert(edit, gridView.size(), separator.join(map(hierarchyToHeading, headings)) + '\n')
-			
 			# write the rows
 			for row in rows:
-				gridView.insert(edit, gridView.size(), separator.join(map(lambda heading: getCSVValue(row.get(heading, ''), separator), headings)) + '\n')
+				gridView.insert(edit, gridView.size(), separator.join(map(lambda heading: getCSVValue(valueForCell(heading, row), separator), headings)) + '\n')
 		
 		sublime.status_message('')
 	def is_enabled(self):
