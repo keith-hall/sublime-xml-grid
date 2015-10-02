@@ -151,6 +151,8 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 		settings = sublime.load_settings('xmlgrid.sublime-settings')
 		includeAttributes = settings.get('include_attributes', True)
 		separator = settings.get('field_separator', ' ')
+		includeGridLines = settings.get('include_gridlines', True)
+		alwaysIncludeLineNumbers = settings.get('always_include_line_numbers', False)
 		
 		# parse the xml and get all headings and values
 		rows = []
@@ -172,6 +174,19 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 		if separator == ' ':
 			linesForCell = lambda heading, row: valueForCell(heading, row).split('\n')
 			
+			# determine the size of each column
+			colSizes = []
+			for heading in headings:
+				colSize = 0
+				for row in rows:
+					colSize = max(colSize, max(list(map(len, linesForCell(heading, row)))))
+				colSizes.append(colSize) # add room for a space and vertical line between the cells/columns
+			
+			if includeGridLines:
+				# add a divider line under the headings
+				for columnNumber in range(len(headings)):
+					rows[0][headings[columnNumber]] += '\n' + ('-' * colSizes[columnNumber])
+				
 			# determine the size of each row
 			rowSizes = []
 			for row in rows:
@@ -181,24 +196,25 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 				rowSizes.append(rowSize)
 			
 			# if some cells span multiple lines
-			if max(rowSizes) > 1:
-				# insert line numbers
+			if max(rowSizes[1:]) > 1 or alwaysIncludeLineNumbers:
+				# insert a column of line numbers
 				lineNoHeading = ('#')
 				headings[:0] = [lineNoHeading]
+				colSize = len(str(len(rows)))
 				for rowIndex, row in enumerate(rows):
-					row[lineNoHeading] = str(rowIndex)
+					row[lineNoHeading] = (' ' * (colSize - len(str(rowIndex)))) + str(rowIndex) # align right
+				
 				rows[0][lineNoHeading] = '#'
-			
-			# determine the size of each column
-			colSizes = []
-			for heading in headings:
-				colSize = 0
-				for row in rows:
-					colSize = max(colSize, max(list(map(len, linesForCell(heading, row)))))
-				colSizes.append(colSize + 1) # add one for a space between the cells/columns
+				if includeGridLines:
+					rows[0][lineNoHeading] += '\n' + ('-' * colSize)
+					
+				colSizes[:0] = [colSize]
 			
 			# write the cells
 			currentLine = 0
+			append = ' '
+			if includeGridLines:
+				append += '| '
 			for rowNumber in range(len(rowSizes)): # for each row
 				for rowLine in range(rowSizes[rowNumber]): # for each line in the row
 					for columnNumber in range(len(headings)): # for each column
@@ -207,7 +223,7 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 							cellLineText = ''
 						else:
 							cellLineText = lines[rowLine]
-						gridView.insert(edit, gridView.size(), cellLineText + ' ' * (colSizes[columnNumber] - len(cellLineText))) # write the text followed by enough blank spaces to fill the rest of the column
+						gridView.insert(edit, gridView.size(), cellLineText + ' ' * (colSizes[columnNumber] - len(cellLineText)) + append) # write the text followed by enough blank spaces to fill the rest of the column
 					currentLine += 1
 					gridView.insert(edit, gridView.size(), '\n')
 		# if csv-mode

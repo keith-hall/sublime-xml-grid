@@ -1,4 +1,6 @@
 {
 	"include_attributes": true,
-	"field_separator": " "
+	"field_separator": " ", # set to space to create a grid, anything else will produce a CSV file
+	"include_gridlines": true,
+	"always_include_line_numbers": false # if false, will only include line numbers if a row contains new lines
 }
