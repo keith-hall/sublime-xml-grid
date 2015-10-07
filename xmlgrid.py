@@ -53,12 +53,7 @@ def addAllChildrenToDictionary(element, headings, values, hierarchy, includeAttr
 
 def isSGML(view):
 	"""return True if the view's syntax is XML."""
-	currentSyntax = view.settings().get('syntax')
-	if currentSyntax is not None:
-		XMLSyntax = 'Packages/XML/'
-		return currentSyntax.startswith(XMLSyntax)
-	else:
-		return False
+	return view.score_selector(0, 'text.xml') > 0
 
 def findNamespacePrefix(hierarchy, findNamespaceURI):
 	"""given a hierarchy of namespace URIs and prefixes, find the given URI and return it's prefix followed by a colon."""
