@@ -53,7 +53,7 @@ def addAllChildrenToDictionary(element, headings, values, hierarchy, includeAttr
 
 def isSGML(view):
 	"""return True if the view's syntax is XML."""
-	return view.score_selector(0, 'text.xml') > 0
+	return view.match_selector(0, 'text.xml')
 
 def findNamespacePrefix(hierarchy, findNamespaceURI):
 	"""given a hierarchy of namespace URIs and prefixes, find the given URI and return it's prefix followed by a colon."""
@@ -122,6 +122,7 @@ def parseXMLFile(fileRef, includeXMLNSAttributes):
 	return root
 
 def getCSVValue(value, separator):
+	"""given a value and a separator, return the value enclosed in quotes when applicable, so that it will represent a single field in the CSV."""
 	if value is None:
 		value = ''
 	quote = '"'
@@ -130,7 +131,7 @@ def getCSVValue(value, separator):
 		value = quote + value.replace(quote, quote + quote) + quote # to escape a quote, we double it up
 	return value
 
-class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().active_view().run_command('xml_to_grid')
+class XmlToGridCommand(sublime_plugin.TextCommand): # sublime.active_window().active_view().run_command('xml_to_grid')
 	def run(self, edit):
 		sublime.status_message('parsing xml...')
 		# parse the view as xml
@@ -164,7 +165,7 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 		# create a new view to write the grid to
 		gridView = self.view.window().new_file()
 		
-		valueForCell = lambda heading, row: row.get(heading, '')
+		valueForCell = lambda heading, row: row.get(heading, '').replace('\t', ' ')
 		# if grid-mode
 		if separator == ' ':
 			linesForCell = lambda heading, row: valueForCell(heading, row).split('\n')
@@ -228,8 +229,18 @@ class XmlToGridCommand(sublime_plugin.TextCommand): #sublime.active_window().act
 				gridView.insert(edit, gridView.size(), separator.join(map(lambda heading: getCSVValue(valueForCell(heading, row), separator), headings)) + '\n')
 		
 		sublime.status_message('')
+
 	def is_enabled(self):
+		"""
+		Enables or disables the 'xml to grid' command. The command will be disabled if the current file does not start in an XML scope.
+		This helps clarify to the user about whether the command can be executed, especially useful for UI controls.
+		"""
 		return isSGML(self.view)
+
 	def is_visible(self):
+		"""
+		The command will be hidden if the current file does not start in an XML scope.
+		This helps to reduce clutter in the UI when the command cannot be executed.
+		"""
 		return isSGML(self.view)
 	
