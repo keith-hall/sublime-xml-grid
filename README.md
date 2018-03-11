@@ -46,7 +46,7 @@ It finds the first element in document order that contains multiple children, an
 
 Is displayed as:
 
-User[@id] | User/FirstName | User/LastName | User/UserName | User/Address/BuildingNumber | User/Address/Street | User/Address/Town | User/Address/PostCode
---- | --- | --- | --- | --- | --- | --- | --- | ---
+User\[@id] | User/FirstName | User/LastName | User/UserName | User/Address/BuildingNumber | User/Address/Street | User/Address/Town | User/Address/PostCode
+--- | --- | --- | --- | --- | --- | --- | ---
 1 | Fred | Bloggs | bloggsf | 12 | The Street | Exampletown |  
 3 | Joe | Bloggs | bloggsj | 9 | Somewhere Else | Exampletown | TY12 6UA 
